@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>片段工作台</title>
-  <meta name="description" content="在浏览器里按时间戳把视频切成 5 到 60 秒片段。非官方工具，不能替代 X 的 Clip video。">
+  <meta name="description" content="在浏览器里按亮点配方把视频切成片段并自动拼成一条。非官方工具，不能替代 X 的 Clip video。">
   <style>
     :root {
       --bg: #11110f;
@@ -124,26 +124,69 @@
     h2 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; }
     footer { margin-top: 48px; max-width: 46em; }
     footer a { color: var(--muted); }
-    #file { display: none; }
+    #file, #recipe-file { display: none; }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+    .callout {
+      background: #241c16;
+      border: 1px solid #5a3a32;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .callout strong { color: var(--text); font-weight: 600; }
+    .callout.flash { border-color: var(--warn); }
+    .recipe-box { margin: 22px 0 0; }
+    .recipe-box h2 { margin-top: 0; }
+    .card.highlight { border-color: var(--good); }
+    @media (min-width: 860px) {
+      .card.highlight { grid-column: 1 / -1; }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>片段工作台</h1>
-      <p>在浏览器里上传本地视频，按时间戳切出 5 到 60 秒片段，预览和下载。无需安装 Python 或 FFmpeg。这不是 X 官方产品，切出来的是普通 MP4，不会自动带「Clip from」署名。官方剪辑仍须在手机 App 里完成。</p>
+      <p>在浏览器里上传本地视频，导入亮点配方，按时间戳切出片段并自动拼成一条。无需安装 Python 或 FFmpeg。这不是 X 官方产品，切出来或拼好的都是普通 MP4，不会自动带「Clip from」署名。官方剪辑仍须在手机 App 里完成。</p>
       <p class="status loading" id="engine-status">正在准备剪辑引擎…</p>
       <div class="progress hidden" id="engine-bar"><span id="engine-bar-fill"></span></div>
     </header>
 
     <div class="bar">
       <button type="button" id="pick-btn">选择视频</button>
-      <button type="button" class="ghost" id="example-btn">加载示例配方</button>
       <button type="button" class="ghost" id="reload-engine">重新加载引擎</button>
       <input id="file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*,.mp4,.webm,.mov,.mkv,.m4v">
     </div>
     <div class="drop" id="drop">把视频拖到这里，或点「选择视频」。支持常见的 MP4、WebM 等格式。<br><strong>文件只会留在这台电脑的浏览器里，不会上传到服务器。</strong></div>
-    <p class="hint" id="hint">请只处理你有权使用、或准备引用原作者的视频。加载示例只会填入时间戳，仍需你自己上传原片。</p>
+
+    <div class="callout" id="x-callout">
+      <strong>公开网页不能直接下载 X / Twitter 视频。</strong>
+      浏览器会被跨域拦住，这里也没有代为拉取的服务器。请先把原片保存到电脑再上传。
+      若想粘贴帖子链接后自动下载，并按亮点配方切片、拼成一条，请用本机版：双击「启动工作台.bat」，或运行 <code>python app.py</code>。
+    </div>
+    <form class="bar" id="x-form">
+      <input id="x-url" type="url" spellcheck="false" placeholder="若只有帖子链接，可贴在这里查看说明">
+      <button type="submit" class="ghost" id="x-url-btn">我只有链接</button>
+    </form>
+
+    <section class="recipe-box">
+      <h2>亮点配方</h2>
+      <textarea id="recipe" placeholder="粘贴亮点配方，例如：&#10;08:50-09:49 镜像猎杀&#10;2:28 3:28 成绩单&#10;&#10;也可以粘贴 JSON，或一行一条时间戳。不要只贴推特链接。"></textarea>
+      <div class="bar">
+        <button type="button" id="import-recipe">导入配方</button>
+        <button type="button" class="ghost" id="example-btn">加载示例配方</button>
+        <button type="button" class="ghost" id="recipe-file-btn">打开配方文件</button>
+        <input id="recipe-file" type="file" accept=".json,.txt,application/json,text/plain">
+      </div>
+    </section>
+    <p class="hint" id="hint">请只处理你有权使用、或准备引用原作者的视频。导入配方只会填入时间戳，仍需你自己上传原片。</p>
 
     <section id="source-box" class="source hidden">
       <video id="source-video" controls preload="metadata"></video>
@@ -165,14 +208,15 @@
       </table>
       <div class="row">
         <button type="button" class="ghost" id="add-row">加一段</button>
-        <button type="button" id="cut-btn">开始剪辑</button>
+        <button type="button" class="ghost" id="cut-btn">只切各段</button>
+        <button type="button" id="stitch-btn">开始剪辑并拼接</button>
       </div>
     </section>
 
     <section id="results"></section>
     <p class="note">如果要把片段作为 X 官方剪辑发出并保留回流，请对着原帖在手机 App 里用「剪辑视频」，时间戳可以对着这里切好的片段来选。</p>
     <footer>
-      本机版仍可粘贴推特链接，在自己的电脑上用 Python 和 FFmpeg 拉取并剪辑。说明见
+      本机版可粘贴推特链接，在自己的电脑上用 Python 和 FFmpeg 自动下载，再按配方切片并拼成一条。说明见
       <a href="https://github.com/0xMulight/clip-workbench">GitHub 仓库</a>。
     </footer>
   </div>

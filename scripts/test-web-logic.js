@@ -41,7 +41,7 @@ function py(expr) {
   return result.stdout.trim();
 }
 
-const importApp = "import sys; sys.path.insert(0, '.'); from app import parse_clock, format_clock, cut_clips\n";
+const importApp = "import sys; sys.path.insert(0, '.'); from app import parse_clock, format_clock, parse_recipe, RecipeError\n";
 
 let failed = 0;
 function check(name, fn) {
@@ -145,9 +145,12 @@ check("relative site paths do not start with /", () => {
   assert.match(html, /src="vendor\/ffmpeg\.js"/);
   assert.match(html, /src="clip\.js"/);
   assert.match(html, /src="app\.js"/);
+  assert.match(html, /开始剪辑并拼接/);
+  assert.match(html, /公开网页不能直接下载 X \/ Twitter 视频/);
   const app = fs.readFileSync(path.join(root, "docs", "app.js"), "utf8");
   assert.match(app, /examples\/dwarkesh-clocktower\.json/);
   assert.doesNotMatch(app, /fetch\("\//);
+  assert.doesNotMatch(app, /fetch\(["'`]https?:\/\/(?:www\.)?(?:x|twitter)\.com/);
   assert.match(app, /CORE_VERSION = "0\.12\.10"/);
   assert.match(app, /@ffmpeg\/core@\$\{CORE_VERSION\}/);
   assert.match(app, /core-mt/);
@@ -155,7 +158,88 @@ check("relative site paths do not start with /", () => {
   assert.match(app, /libx264/);
   assert.match(app, /veryfast/);
   assert.match(app, /\+faststart/);
-  assert.doesNotMatch(app, /-c copy/);
+  // Cuts must re-encode; -c copy is allowed only afterwards for concat demuxer remux.
+  assert.match(app, /async function concatSegments/);
+  const cutBlock = app.slice(app.indexOf("const ENCODE_ARGS"), app.indexOf("async function concatSegments"));
+  assert.doesNotMatch(cutBlock, /-c copy/);
+  assert.match(cutBlock, /libx264/);
+});
+
+function pyRecipe(text) {
+  const expr = importApp + `
+import json
+try:
+    print(json.dumps(parse_recipe(${JSON.stringify(text)}), ensure_ascii=False, sort_keys=True))
+except RecipeError as exc:
+    print(json.dumps({"error": str(exc), "code": exc.code}, ensure_ascii=False, sort_keys=True))
+except ValueError as exc:
+    print(json.dumps({"error": str(exc)}, ensure_ascii=False, sort_keys=True))
+`;
+  return JSON.parse(py(expr));
+}
+
+function jsRecipeOrError(text) {
+  try {
+    return logic.parseRecipe(text);
+  } catch (err) {
+    const out = { error: err.message };
+    if (err.code) out.code = err.code;
+    return out;
+  }
+}
+
+const recipeCases = [
+  "08:50-09:49 镜像猎杀",
+  "2:28 3:28 成绩单",
+  "02:28 – 03:28 成绩单",
+  "08:50—09:49 镜像猎杀",
+  "13:36~14:33 通宵改引擎",
+  "88 148 标题",
+  "00:05,00:12 开头",
+  `https://x.com/dwarkesh_sp/status/2118449808402681911
+08:50-09:49 镜像猎杀
+# comment
+2:28 3:28 成绩单`
+];
+
+for (const input of recipeCases) {
+  check("parseRecipe " + JSON.stringify(input).slice(0, 40), () => {
+    const js = jsRecipeOrError(input);
+    const pyVal = pyRecipe(input);
+    assert.deepStrictEqual(js, pyVal);
+    assert.ok(js.clips && js.clips.length >= 1);
+    assert.ok(js.clips[0].start && js.clips[0].end);
+  });
+}
+
+check("parseRecipe JSON example and aliases", () => {
+  const fs = require("fs");
+  const raw = fs.readFileSync(path.join(root, "examples", "dwarkesh-clocktower.json"), "utf8");
+  const js = logic.parseRecipe(raw);
+  const pyVal = pyRecipe(raw);
+  assert.deepStrictEqual(js, pyVal);
+  assert.strictEqual(js.clips.length, 5);
+  assert.match(js.source_url, /x\.com\/dwarkesh_sp/);
+  const alias = logic.parseRecipe(JSON.stringify({
+    clips: [{ from: "08:50", to: "09:49", name: "镜像猎杀", recommend: true }],
+  }));
+  assert.strictEqual(alias.clips[0].title, "镜像猎杀");
+  assert.strictEqual(alias.clips[0].start, "08:50");
+  assert.strictEqual(alias.clips[0].recommend, true);
+});
+
+check("parseRecipe rejects a bare X URL with X_URL", () => {
+  const js = jsRecipeOrError("https://x.com/foo/status/123");
+  const pyVal = pyRecipe("https://x.com/foo/status/123");
+  assert.strictEqual(js.code, "X_URL");
+  assert.deepStrictEqual(js, pyVal);
+});
+
+check("parseRecipe rejects empty and bad lines", () => {
+  assert.throws(() => logic.parseRecipe("   "), /空/);
+  assert.throws(() => logic.parseRecipe("hello world"), /无法识别/);
+  const pyVal = pyRecipe("hello world");
+  assert.match(pyVal.error, /无法识别/);
 });
 
 if (failed) {

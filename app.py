@@ -25,7 +25,7 @@ STATIC = ROOT / "static"
 HOST = "127.0.0.1"
 PORT = 8765
 
-ALLOWED_HOSTS = {"x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"}
+ALLOWED_HOSTS = {"x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com", "m.twitter.com"}
 STATUS_RE = re.compile(r"status(?:es)?/(\d+)")
 SAFE_NAME = re.compile(r"[^0-9A-Za-z\u4e00-\u9fff_-]+")
 
@@ -70,6 +70,240 @@ def format_clock(seconds: float) -> str:
     if h:
         return f"{h:02d}:{m:02d}:{s:02d}"
     return f"{m:02d}:{s:02d}"
+
+
+CLOCK_TOKEN = r"(?:\d+:){0,2}\d+(?:\.\d+)?"
+SEP_LINE = re.compile(
+    rf"^\s*({CLOCK_TOKEN})\s*[-–—－~～到,]\s*({CLOCK_TOKEN})\s*(.*?)\s*$"
+)
+SPACE_LINE = re.compile(
+    rf"^\s*({CLOCK_TOKEN})\s+({CLOCK_TOKEN})\s*(.*?)\s*$"
+)
+X_URL_RE = re.compile(r"https?://(?:www\.|mobile\.|m\.)?(?:x|twitter)\.com/[^\s]+", re.I)
+FENCE_RE = re.compile(r"^```(?:json)?\s*([\s\S]*?)\s*```$", re.I)
+ENCODE_ARGS = [
+    "-c:v",
+    "libx264",
+    "-preset",
+    "veryfast",
+    "-crf",
+    "20",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "128k",
+    "-ar",
+    "44100",
+    "-ac",
+    "2",
+    "-movflags",
+    "+faststart",
+]
+
+
+class RecipeError(ValueError):
+    def __init__(self, message: str, code: str | None = None, url: str = "") -> None:
+        super().__init__(message)
+        self.code = code
+        self.url = url
+
+
+def looks_like_x_url(text: str) -> bool:
+    raw = str(text or "").strip().rstrip(".,;，。；")
+    if not raw:
+        return False
+    if X_URL_RE.fullmatch(raw):
+        return True
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return False
+    host = (parsed.hostname or "").lower()
+    return parsed.scheme in {"http", "https"} and host in ALLOWED_HOSTS
+
+
+def extract_x_url(text: str) -> str:
+    match = X_URL_RE.search(str(text or ""))
+    return match.group(0) if match else ""
+
+
+def strip_recipe_fences(text: str) -> str:
+    raw = str(text or "").lstrip("\ufeff").strip()
+    fence = FENCE_RE.fullmatch(raw)
+    if fence:
+        return fence.group(1).strip()
+    return raw
+
+
+def _clock_string(value) -> str:
+    if isinstance(value, bool):
+        raise ValueError("时间不能是布尔值")
+    if isinstance(value, (int, float)):
+        number = float(value)
+        if number.is_integer():
+            return str(int(number))
+        return str(value)
+    return str(value).strip()
+
+
+def normalize_clip(item, index: int) -> dict:
+    if not isinstance(item, dict):
+        raise ValueError(f"第 {index} 段配方格式不对")
+    start = _clock_string(item.get("start") or item.get("from") or item.get("begin") or "")
+    end = _clock_string(item.get("end") or item.get("to") or item.get("stop") or "")
+    if not start or not end:
+        raise ValueError(f"第 {index} 段缺少开始或结束时间")
+    parse_clock(start)
+    parse_clock(end)
+    title = str(item.get("title") or item.get("name") or "").strip()
+    return {
+        "start": start,
+        "end": end,
+        "title": title,
+        "point": str(item.get("point") or item.get("note") or "").strip(),
+        "recommend": bool(item.get("recommend")),
+    }
+
+
+def parse_recipe_json(raw: str) -> dict:
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("配方不是有效的 JSON") from exc
+    meta = {"title": "", "author": "", "source_url": "", "note": ""}
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        meta = {
+            "title": data.get("title") or "",
+            "author": data.get("author") or "",
+            "source_url": data.get("source_url") or data.get("url") or data.get("source") or "",
+            "note": data.get("note") or "",
+        }
+        items = data.get("clips") or data.get("segments")
+        if not isinstance(items, list):
+            raise ValueError("JSON 里没有 clips 列表")
+    else:
+        raise ValueError("配方不是有效的 JSON")
+    if not items:
+        raise ValueError("配方里没有片段")
+    return {
+        "title": meta["title"],
+        "author": meta["author"],
+        "source_url": meta["source_url"],
+        "note": meta["note"],
+        "clips": [normalize_clip(item, i) for i, item in enumerate(items, start=1)],
+    }
+
+
+def parse_recipe_text(raw: str) -> dict:
+    clips: list[dict] = []
+    source_url = ""
+    for idx, line in enumerate(raw.splitlines(), start=1):
+        trimmed = line.strip()
+        if not trimmed:
+            continue
+        if trimmed.startswith("#") or trimmed.startswith("//"):
+            continue
+        url = extract_x_url(trimmed)
+        if url and (looks_like_x_url(trimmed) or trimmed == url):
+            source_url = source_url or url
+            continue
+        match = SEP_LINE.match(trimmed) or SPACE_LINE.match(trimmed)
+        if not match:
+            raise ValueError(
+                f"无法识别第 {idx} 行：{trimmed}。请写成 08:50-09:49 标题，或 2:28 3:28 标题。"
+            )
+        start, end, title = match.group(1), match.group(2), (match.group(3) or "").strip()
+        parse_clock(start)
+        parse_clock(end)
+        clips.append(
+            {"start": start, "end": end, "title": title, "point": "", "recommend": False}
+        )
+    if not clips:
+        raise ValueError("没有识别到时间戳。可以用 JSON，或每行写 08:50-09:49 标题。")
+    return {"title": "", "author": "", "source_url": source_url, "note": "", "clips": clips}
+
+
+def parse_recipe(text: str) -> dict:
+    raw = strip_recipe_fences(text)
+    if not raw:
+        raise ValueError("配方是空的，请粘贴时间戳或 JSON")
+    tokens = raw.split()
+    if len(tokens) == 1 and looks_like_x_url(raw):
+        url = extract_x_url(raw) or raw.strip()
+        raise RecipeError("这是一条 X / Twitter 链接，不是时间戳配方。", code="X_URL", url=url)
+    if raw.startswith("{") or raw.startswith("["):
+        return parse_recipe_json(raw)
+    return parse_recipe_text(raw)
+
+
+def concat_videos(paths: list[Path], dest: Path) -> None:
+    if not paths:
+        raise ValueError("没有可拼接的片段")
+    if len(paths) == 1:
+        # Still remux with faststart so the highlight file is a normal downloadable MP4.
+        proc = run(
+            ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(paths[0]), "-c", "copy", "-movflags", "+faststart", str(dest)],
+            timeout=180,
+        )
+        if proc.returncode != 0 or not dest.exists():
+            proc = run(
+                ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(paths[0]), *ENCODE_ARGS, str(dest)],
+                timeout=300,
+            )
+        if proc.returncode != 0 or not dest.exists():
+            raise RuntimeError(proc.stderr.strip() or "拼接失败")
+        return
+
+    list_path = dest.parent / "concat.txt"
+    lines = []
+    for path in paths:
+        name = path.name.replace("\\", "/").replace("'", r"'\''")
+        lines.append(f"file '{name}'")
+    list_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    proc = run(
+        [
+            "ffmpeg",
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_path),
+            "-c",
+            "copy",
+            "-movflags",
+            "+faststart",
+            str(dest),
+        ],
+        timeout=300,
+    )
+    if proc.returncode != 0 or not dest.exists():
+        proc = run(
+            [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_path),
+                *ENCODE_ARGS,
+                str(dest),
+            ],
+            timeout=600,
+        )
+    if proc.returncode != 0 or not dest.exists():
+        raise RuntimeError(proc.stderr.strip() or "拼接失败")
 
 
 def slug(text: str, fallback: str) -> str:
@@ -248,7 +482,7 @@ def load_example(name: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def cut_clips(source_id: str, clips: list[dict]) -> dict:
+def cut_clips(source_id: str, clips: list[dict], stitch: bool = False) -> dict:
     source_id = slug(source_id, "")
     if not source_id:
         raise ValueError("缺少视频编号")
@@ -298,18 +532,7 @@ def cut_clips(source_id: str, clips: list[dict]) -> dict:
                 f"{end:.3f}",
                 "-i",
                 str(src),
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "20",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "128k",
-                "-movflags",
-                "+faststart",
+                *ENCODE_ARGS,
                 str(dest),
             ],
             timeout=180,
@@ -330,7 +553,21 @@ def cut_clips(source_id: str, clips: list[dict]) -> dict:
                 "download_name": filename,
             }
         )
-    return {"id": source_id, "duration": duration, "clips": results}
+    payload = {"id": source_id, "duration": duration, "clips": results, "highlight": None}
+    if stitch:
+        dest = out_dir / "highlight.mp4"
+        paths = [out_dir / item["download_name"] for item in results]
+        concat_videos(paths, dest)
+        actual = round(ffprobe_duration(dest), 2)
+        expected = round(sum(item["seconds"] for item in results), 2)
+        payload["highlight"] = {
+            "title": "亮点拼接",
+            "seconds": actual,
+            "expected_seconds": expected,
+            "file": f"/media/output/{source_id}/highlight.mp4",
+            "download_name": "highlight.mp4",
+        }
+    return payload
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -370,6 +607,18 @@ class Handler(SimpleHTTPRequestHandler):
         if path in {"/", "/index.html"}:
             self.path = "/index.html"
             return super().do_GET()
+        if path == "/clip.js":
+            target = (ROOT / "docs" / "clip.js").resolve()
+            if not target.is_file():
+                self.send_error(404)
+                return
+            data = target.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if path == "/api/health":
             return self._json(200, health())
         if path == "/api/examples":
@@ -406,6 +655,14 @@ class Handler(SimpleHTTPRequestHandler):
             body = self._read_json()
         except ValueError as exc:
             return self._json(400, {"error": str(exc)})
+        if parsed.path == "/api/parse-recipe":
+            try:
+                result = parse_recipe(str(body.get("text") or ""))
+                return self._json(200, result)
+            except RecipeError as exc:
+                return self._json(400, {"error": str(exc), "code": exc.code, "url": exc.url})
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
         if not JOB_LOCK.acquire(blocking=False):
             return self._json(409, {"error": "已有任务在进行，请稍后再试"})
         try:
@@ -424,9 +681,13 @@ class Handler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/cut":
                 source_id = str(body.get("id") or "")
                 clips = body.get("clips") or []
+                if not clips and body.get("recipe"):
+                    parsed_recipe = parse_recipe(str(body.get("recipe") or ""))
+                    clips = parsed_recipe["clips"]
                 if not isinstance(clips, list):
                     return self._json(400, {"error": "片段列表格式不对"})
-                result = cut_clips(source_id, clips)
+                stitch = bool(body.get("stitch"))
+                result = cut_clips(source_id, clips, stitch=stitch)
                 return self._json(200, result)
             return self._json(404, {"error": "没有这个接口"})
         except ValueError as exc:
