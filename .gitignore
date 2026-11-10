@@ -17,3 +17,7 @@ clips/
 .env
 .idea/
 .vscode/
+
+# Portable release artifacts (never commit binaries)
+dist/
+*.log
