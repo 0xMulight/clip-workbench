@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>片段工作台</title>
+  <meta name="description" content="在浏览器里按时间戳把视频切成 5 到 60 秒片段。非官方工具，不能替代 X 的 Clip video。">
+  <style>
+    :root {
+      --bg: #11110f;
+      --paper: #1a1916;
+      --line: #2c2a25;
+      --text: #efeae1;
+      --muted: #9a9386;
+      --dim: #6f6a60;
+      --accent: #d24a2c;
+      --good: #c9b48a;
+      --warn: #d2a35c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 22px 80px; }
+    header h1 { font-size: 22px; font-weight: 600; letter-spacing: 0.04em; margin: 0 0 8px; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; max-width: 46em; }
+    .status { margin: 16px 0 0; font-size: 13px; color: var(--dim); }
+    .status.bad { color: #e08b7a; }
+    .status.ok { color: var(--good); }
+    .status.loading { color: var(--warn); }
+    .progress {
+      margin-top: 10px;
+      height: 6px;
+      background: var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--good);
+      border-radius: 999px;
+      transition: width 0.15s linear;
+    }
+    .bar, .row { display: flex; gap: 10px; margin: 22px 0 12px; flex-wrap: wrap; align-items: center; }
+    input, textarea {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus { border-color: #5a554c; }
+    button, .btn {
+      appearance: none; border: 0; cursor: pointer;
+      background: var(--text); color: #161512;
+      border-radius: 8px; padding: 12px 16px;
+      font-size: 14px; font-weight: 600;
+      text-decoration: none; display: inline-block;
+    }
+    button:hover, .btn:hover { filter: brightness(0.95); }
+    button.ghost, .btn.ghost {
+      background: transparent; color: var(--text); border: 1px solid var(--line);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .hint, .note, footer { color: var(--dim); font-size: 13px; }
+    .hint { margin: 0 0 22px; }
+    .hint.bad { color: #e08b7a; }
+    .drop {
+      background: var(--paper);
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 22px 18px;
+      margin: 20px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .drop.over { border-color: var(--good); color: var(--text); }
+    .drop strong { color: var(--text); font-weight: 600; }
+    .source {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 8px 0 22px;
+    }
+    .source video { width: 100%; max-height: 360px; background: #000; border-radius: 8px; display: block; }
+    .source .meta { margin-top: 10px; color: var(--muted); font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+    th, td { text-align: left; padding: 8px 6px; vertical-align: top; font-size: 14px; }
+    th { color: var(--muted); font-weight: 500; font-size: 12px; }
+    td input { width: 100%; padding: 8px 10px; }
+    td.check { width: 52px; padding-top: 14px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+    @media (min-width: 860px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .card.feat { grid-column: 1 / -1; }
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .card.feat { border-color: #5a3a32; }
+    .media { background: #000; aspect-ratio: 16/9; }
+    .media video { width: 100%; height: 100%; display: block; }
+    .body { padding: 16px 18px 18px; }
+    .body h3 { margin: 0 0 8px; font-size: 17px; }
+    .body .point { margin: 0 0 8px; font-size: 14px; }
+    .meta-line { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .badge { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 600; }
+    .warn { color: var(--warn); font-size: 13px; margin: 6px 0 0; }
+    .download { margin-top: 14px; }
+    .hidden { display: none; }
+    h2 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; }
+    footer { margin-top: 48px; max-width: 46em; }
+    footer a { color: var(--muted); }
+    #file { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>片段工作台</h1>
+      <p>在浏览器里上传本地视频，按时间戳切出 5 到 60 秒片段，预览和下载。无需安装 Python 或 FFmpeg。这不是 X 官方产品，切出来的是普通 MP4，不会自动带「Clip from」署名。官方剪辑仍须在手机 App 里完成。</p>
+      <p class="status loading" id="engine-status">正在准备剪辑引擎…</p>
+      <div class="progress hidden" id="engine-bar"><span id="engine-bar-fill"></span></div>
+    </header>
+
+    <div class="bar">
+      <button type="button" id="pick-btn">选择视频</button>
+      <button type="button" class="ghost" id="example-btn">加载示例配方</button>
+      <button type="button" class="ghost" id="reload-engine">重新加载引擎</button>
+      <input id="file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*,.mp4,.webm,.mov,.mkv,.m4v">
+    </div>
+    <div class="drop" id="drop">把视频拖到这里，或点「选择视频」。支持常见的 MP4、WebM 等格式。<br><strong>文件只会留在这台电脑的浏览器里，不会上传到服务器。</strong></div>
+    <p class="hint" id="hint">请只处理你有权使用、或准备引用原作者的视频。加载示例只会填入时间戳，仍需你自己上传原片。</p>
+
+    <section id="source-box" class="source hidden">
+      <video id="source-video" controls preload="metadata"></video>
+      <div class="meta" id="source-meta"></div>
+    </section>
+
+    <section id="editor" class="hidden">
+      <h2>片段列表</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>开始</th>
+            <th>结束</th>
+            <th>标题</th>
+            <th>先发</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="row">
+        <button type="button" class="ghost" id="add-row">加一段</button>
+        <button type="button" id="cut-btn">开始剪辑</button>
+      </div>
+    </section>
+
+    <section id="results"></section>
+    <p class="note">如果要把片段作为 X 官方剪辑发出并保留回流，请对着原帖在手机 App 里用「剪辑视频」，时间戳可以对着这里切好的片段来选。</p>
+    <footer>
+      本机版仍可粘贴推特链接，在自己的电脑上用 Python 和 FFmpeg 拉取并剪辑。说明见
+      <a href="https://github.com/0xMulight/clip-workbench">GitHub 仓库</a>。
+    </footer>
+  </div>
+
+  <script src="vendor/ffmpeg.js"></script>
+  <script src="clip.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

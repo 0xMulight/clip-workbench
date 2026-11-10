@@ -1,19 +1,29 @@
 # 片段工作台 / Clip Workbench
 
-本地网页工具：把 X / Twitter 上的视频按时间戳切成 5 到 60 秒片段，方便预览和下载。
+在浏览器里按时间戳把视频切成 5 到 60 秒片段，打开就能用，无需安装 Python 或 FFmpeg。
+
+**网页版（推荐）：** [https://0xMulight.github.io/clip-workbench/](https://0xMulight.github.io/clip-workbench/)
+
+公开网页的源码在 `docs/` 目录，由 GitHub Pages 从 `main` 分支的这个目录发布。
 
 这不是 X 的官方产品，也不能替代 App 里的「剪辑视频」。切出来的是普通 MP4，发到 X 上不会自动带「Clip from」署名和回流。如果你要官方剪辑，用这里对好时间，再回到手机 App 里剪。
 
-## 能做什么
+## 网页版怎么用
 
-- 粘贴一条带视频的 `x.com` / `twitter.com` 帖子链接，在本机拉取原片。
-- 按开始 / 结束时间切出多段预览，并下载。
-- 对照 X 官方剪辑规则做提醒：单段 5–60 秒，且不超过原片的 30%。
-- 自带一个时间戳配方示例（Dwarkesh Patel 的 *Which AI is the best liar?*）。仓库里**不包含任何视频文件**，需要你自行拉取。
+1. 打开上面的页面，上传一段本地视频（常见的 MP4、WebM 等即可）。
+2. 填写开始 / 结束时间（支持 `ss`、`mm:ss`、`hh:mm:ss`），或点「加载示例配方」填入现成时间戳。示例不会附带视频，仍需你自己上传原片。
+3. 点「开始剪辑」。首次使用会在浏览器里下载约 32 MB 的剪辑引擎，页面会显示进度。
+4. 在结果里预览并下载片段。
 
-拉取和剪辑都在你自己的电脑上完成，不会把视频上传到第三方。请只处理你有权使用、或准备引用原作者的视频。
+片段短于 5 秒、长于 60 秒，或超过原片的 30% 时，页面会提醒——这是 X 官方「剪辑视频」的规则，不是本工具自己的评分。即便有提醒，仍会按你给的时间切出文件。
 
-## Windows 10 最省事的用法
+视频只在你的浏览器里处理，不会上传到服务器。公开网页**不接受**粘贴 X / Twitter 链接代为拉视频。请只处理你有权使用、或准备引用原作者的视频。
+
+## 本机版：仍可粘贴推特链接
+
+如果你想粘贴 `x.com` / `twitter.com` 帖子链接并在自己的电脑上拉取原片，可以用仓库里的 Python 工具。拉取和剪辑都在本机完成，不会把视频上传到第三方。
+
+### Windows 10 最省事的用法
 
 1. 安装 [Python 3.10+](https://www.python.org/downloads/)，安装时勾选 **Add python.exe to PATH**。
 2. 安装 [FFmpeg](https://www.gyan.dev/ffmpeg/builds/)，把里面带 `ffmpeg.exe` 和 `ffprobe.exe` 的 `bin` 目录加到系统 PATH。装完后关掉并重新打开窗口。
@@ -22,7 +32,7 @@
 
 更细的安装说明见 [docs/windows-guide.md](docs/windows-guide.md)。
 
-## 命令行（macOS / Linux，或你更习惯终端时）
+### 命令行（macOS / Linux，或你更习惯终端时）
 
 ```bash
 python3 -m venv .venv
@@ -35,8 +45,10 @@ python app.py
 
 ## 还没有做的
 
-自动从任意新链接里找出「最有传播潜力」的片段，还不在这一版。你可以先自己填时间戳，或点「加载示例配方」用现成的示例。后面如果加自动分析，也会继续只在本地运行。
+自动从任意视频里找出「最有传播潜力」的片段，还不在这一版。你可以先自己填时间戳，或点「加载示例配方」用现成的示例。后面如果加自动分析，也会继续只在本地 / 浏览器里运行。
 
 ## 许可
 
 MIT License。Copyright (c) 2026 0xMulight。
+
+网页版的剪辑引擎使用 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm)（MIT），并选用官方单线程核心，以便在无法设置 COOP/COEP 的 GitHub Pages 上运行。

@@ -1,0 +1,14 @@
+这些文件来自 ffmpeg.wasm（MIT License），仅作同域加载 UMD 包装与 Worker 之用。
+GitHub Pages 无法设置 COOP/COEP，跨域 new Worker(CDN) 也会失败，所以把小体积脚本放在本目录。
+
+来源与版本：
+- @ffmpeg/ffmpeg 0.12.15
+  https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/ffmpeg.js
+  https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/umd/814.ffmpeg.js
+- 上游仓库：https://github.com/ffmpegwasm/ffmpeg.wasm
+
+单线程核心（约 32 MB 的 wasm）不进仓库，页面运行时从 CDN 加载：
+- @ffmpeg/core 0.12.10（官方单线程核心，不依赖 SharedArrayBuffer）
+  https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/
+
+不要把 @ffmpeg/core-mt 放进页面：多线程核心需要 SharedArrayBuffer，在 GitHub Pages 上会失败。
