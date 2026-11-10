@@ -1,0 +1,30 @@
+# Windows 10 安装说明
+
+## Python
+
+1. 打开 [Python 官方下载页](https://www.python.org/downloads/)，安装 3.10 或更高版本。
+2. 安装界面第一屏勾选 **Add python.exe to PATH**，再点 Install Now。
+3. 装完后新开一个命令提示符，输入 `python --version`，应能看到版本号。
+
+## FFmpeg
+
+1. 打开 [gyan.dev 的 FFmpeg 构建页](https://www.gyan.dev/ffmpeg/builds/)，下载 **ffmpeg-release-essentials.zip**。
+2. 解压到一个固定目录，例如 `C:\ffmpeg`。
+3. 确认 `C:\ffmpeg\bin` 里有 `ffmpeg.exe` 和 `ffprobe.exe`（若解压后多一层文件夹，以实际路径为准）。
+4. 把这个 `bin` 目录加到系统环境变量 Path：
+   - 开始菜单搜索「环境变量」，打开「编辑系统环境变量」→「环境变量」。
+   - 在「用户变量」或「系统变量」里选中 Path，编辑，新建，粘贴 `bin` 的完整路径。
+5. 关掉所有命令窗口和已打开的「启动工作台.bat」，再重新打开，输入 `ffmpeg -version` 确认可用。
+
+## 启动
+
+解压或克隆本仓库后，双击 `启动工作台.bat`。第一次会创建 `.venv` 并安装 `yt-dlp`，随后自动打开浏览器。
+
+如果浏览器没有自动打开，手动访问 http://127.0.0.1:8765/ 。
+
+## 常见问题
+
+- **提示没有 Python**：没勾选 PATH，或需要重新打开脚本窗口。
+- **提示没有 FFmpeg**：PATH 还没生效，或加错了目录（应指向包含 `ffmpeg.exe` 的 `bin`）。
+- **拉取视频失败**：帖子可能不是可下载的预录视频（例如直播、仅图片，或地区限制）。也可以换一条公开的长视频再试。
+- **服务打不开**：确认没有别的程序占用 8765 端口，并始终用本机地址访问。这个服务只监听 `127.0.0.1`，不会对局域网开放。

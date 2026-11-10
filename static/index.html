@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>片段工作台</title>
+  <style>
+    :root {
+      --bg: #11110f;
+      --paper: #1a1916;
+      --line: #2c2a25;
+      --text: #efeae1;
+      --muted: #9a9386;
+      --dim: #6f6a60;
+      --accent: #d24a2c;
+      --good: #c9b48a;
+      --warn: #d2a35c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+    body {
+      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 22px 80px; }
+    header h1 { font-size: 22px; font-weight: 600; letter-spacing: 0.04em; margin: 0 0 8px; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; max-width: 42em; }
+    .status { margin: 16px 0 0; font-size: 13px; color: var(--dim); }
+    .status.bad { color: #e08b7a; }
+    .status.ok { color: var(--good); }
+    .bar, .row { display: flex; gap: 10px; margin: 28px 0 12px; flex-wrap: wrap; }
+    input, textarea {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus { border-color: #5a554c; }
+    .bar input { flex: 1; min-width: 240px; }
+    button, .btn {
+      appearance: none; border: 0; cursor: pointer;
+      background: var(--text); color: #161512;
+      border-radius: 8px; padding: 12px 16px;
+      font-size: 14px; font-weight: 600;
+      text-decoration: none; display: inline-block;
+    }
+    button:hover, .btn:hover { filter: brightness(0.95); }
+    button.ghost, .btn.ghost {
+      background: transparent; color: var(--text); border: 1px solid var(--line);
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .hint, .note { color: var(--dim); font-size: 13px; margin: 0 0 22px; }
+    .source {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin: 8px 0 22px;
+    }
+    .source video { width: 100%; max-height: 360px; background: #000; border-radius: 8px; display: block; }
+    .source .meta { margin-top: 10px; color: var(--muted); font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+    th, td { text-align: left; padding: 8px 6px; vertical-align: top; font-size: 14px; }
+    th { color: var(--muted); font-weight: 500; font-size: 12px; }
+    td input { width: 100%; padding: 8px 10px; }
+    td.check { width: 52px; padding-top: 14px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+    @media (min-width: 860px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .card.feat { grid-column: 1 / -1; }
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .card.feat { border-color: #5a3a32; }
+    .media { background: #000; aspect-ratio: 16/9; }
+    .media video { width: 100%; height: 100%; display: block; }
+    .body { padding: 16px 18px 18px; }
+    .meta-line { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .badge { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 600; }
+    .warn { color: var(--warn); font-size: 13px; margin: 6px 0 0; }
+    .hidden { display: none; }
+    h2 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>片段工作台</h1>
+      <p>把带视频的 X / Twitter 链接丢进来，按时间戳切出 5 到 60 秒片段，在本地预览和下载。这不是 X 官方产品，切出来的是普通 MP4，不会自动带「Clip from」署名。</p>
+      <p class="status" id="health">正在检查本机环境…</p>
+    </header>
+
+    <form class="bar" id="import-form">
+      <input id="url" type="url" spellcheck="false" placeholder="粘贴 https://x.com/用户名/status/数字">
+      <button type="submit" id="import-btn">拉取视频</button>
+      <button type="button" class="ghost" id="example-btn">加载示例配方</button>
+    </form>
+    <p class="hint" id="hint">拉取只会在你自己的电脑上进行。请只处理你有权使用、或准备引用原作者的视频。</p>
+
+    <section id="source-box" class="source hidden">
+      <video id="source-video" controls preload="metadata"></video>
+      <div class="meta" id="source-meta"></div>
+    </section>
+
+    <section id="editor" class="hidden">
+      <h2>片段列表</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>开始</th>
+            <th>结束</th>
+            <th>标题</th>
+            <th>先发</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="row">
+        <button type="button" class="ghost" id="add-row">加一段</button>
+        <button type="button" id="cut-btn">开始剪辑</button>
+      </div>
+    </section>
+
+    <section id="results"></section>
+    <p class="note">如果要把片段作为 X 官方剪辑发出并保留回流，请对着原帖在手机 App 里用「剪辑视频」，时间戳可以对着这里切好的片段来选。</p>
+  </div>
+
+  <script>
+    const state = { id: null, duration: 0, clips: [] };
+
+    const $ = (s, el=document) => el.querySelector(s);
+    const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+
+    function setHealth(data, error) {
+      const el = $("#health");
+      if (error) {
+        el.className = "status bad";
+        el.textContent = "没法连上本地服务。请先运行 python app.py，或在 Windows 上双击「启动工作台.bat」。";
+        return;
+      }
+      const missing = [];
+      if (!data.ffmpeg || !data.ffprobe) missing.push("FFmpeg");
+      if (!data.yt_dlp) missing.push("yt-dlp");
+      if (missing.length) {
+        el.className = "status bad";
+        el.textContent = "本机还缺：" + missing.join("、") + "。安装步骤见仓库 README。";
+      } else {
+        el.className = "status ok";
+        el.textContent = "本机环境就绪，服务只监听在这台电脑上。";
+      }
+    }
+
+    async function loadHealth() {
+      try {
+        const res = await fetch("/api/health");
+        setHealth(await res.json());
+      } catch (err) {
+        setHealth(null, err);
+      }
+    }
+
+    function addRow(clip = {}) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input class="start" placeholder="08:50" value="${clip.start || ""}"></td>
+        <td><input class="end" placeholder="09:49" value="${clip.end || ""}"></td>
+        <td><input class="title" placeholder="标题" value="${clip.title || ""}" data-point="${(clip.point || "").replace(/"/g, "&quot;")}"></td>
+        <td class="check"><input class="rec" type="checkbox" ${clip.recommend ? "checked" : ""}></td>
+      `;
+      $("#rows").appendChild(tr);
+    }
+
+    function readClips() {
+      return $$("#rows tr").map(tr => ({
+        start: $(".start", tr).value.trim(),
+        end: $(".end", tr).value.trim(),
+        title: $(".title", tr).value.trim(),
+        point: $(".title", tr).dataset.point || "",
+        recommend: $(".rec", tr).checked,
+      })).filter(c => c.start && c.end);
+    }
+
+    function showSource(data, label) {
+      state.id = data.id;
+      state.duration = data.duration;
+      $("#source-box").classList.remove("hidden");
+      $("#editor").classList.remove("hidden");
+      const video = $("#source-video");
+      video.src = data.preview;
+      const mins = Math.floor(data.duration / 60);
+      const secs = Math.round(data.duration % 60).toString().padStart(2, "0");
+      $("#source-meta").textContent = `${label || "原片"} · ${mins}:${secs} · 编号 ${data.id}`;
+    }
+
+    $("#add-row").addEventListener("click", () => addRow());
+
+    $("#example-btn").addEventListener("click", async () => {
+      $("#hint").textContent = "正在加载示例配方…";
+      try {
+        const data = await (await fetch("/api/examples/dwarkesh-clocktower")).json();
+        if (data.error) throw new Error(data.error);
+        $("#url").value = data.source_url || "";
+        $("#rows").innerHTML = "";
+        (data.clips || []).forEach(addRow);
+        $("#editor").classList.remove("hidden");
+        $("#hint").textContent = "已填入 Dwarkesh 那条视频的 5 个时间戳。点「拉取视频」后即可剪辑。仓库里不含视频文件。";
+      } catch (err) {
+        $("#hint").textContent = err.message || "加载示例失败";
+      }
+    });
+
+    $("#import-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const url = $("#url").value.trim();
+      if (!url) {
+        $("#hint").textContent = "请先粘贴完整的帖子链接。";
+        return;
+      }
+      const btn = $("#import-btn");
+      btn.disabled = true;
+      $("#hint").textContent = "正在拉取视频，较长的片子可能要一两分钟。";
+      try {
+        const res = await fetch("/api/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "拉取失败");
+        showSource(data, url);
+        if (!$$("#rows tr").length) addRow();
+        $("#hint").textContent = "视频已拉取到本机。核对时间戳后点「开始剪辑」。";
+      } catch (err) {
+        $("#hint").textContent = err.message || "拉取失败";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $("#cut-btn").addEventListener("click", async () => {
+      const clips = readClips();
+      if (!state.id) {
+        $("#hint").textContent = "请先拉取视频。";
+        return;
+      }
+      if (!clips.length) {
+        $("#hint").textContent = "请至少填写一段开始和结束时间。";
+        return;
+      }
+      const btn = $("#cut-btn");
+      btn.disabled = true;
+      $("#hint").textContent = "正在按时间戳剪辑…";
+      try {
+        const res = await fetch("/api/cut", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: state.id, clips }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "剪辑失败");
+        renderResults(data);
+        $("#hint").textContent = `已切出 ${data.clips.length} 个片段，可在页面里预览和下载。`;
+      } catch (err) {
+        $("#hint").textContent = err.message || "剪辑失败";
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function renderResults(data) {
+      const cards = data.clips.map(c => `
+        <article class="card${c.recommend ? " feat" : ""}">
+          <div class="media">
+            <video controls preload="metadata" src="${c.file}"></video>
+          </div>
+          <div class="body">
+            <div class="meta-line">
+              <span>片段 ${c.index}</span>
+              <span>${c.start}–${c.end}</span>
+              <span>${c.seconds} 秒</span>
+              ${c.recommend ? '<span class="badge">建议先发</span>' : ""}
+            </div>
+            <h3 style="margin:0 0 8px;font-size:17px;">${c.title}</h3>
+            ${c.point ? `<p style="margin:0 0 8px;font-size:14px;">${c.point}</p>` : ""}
+            ${(c.warnings || []).map(w => `<p class="warn">${w}</p>`).join("")}
+            <div style="margin-top:14px;">
+              <a class="btn" href="${c.file}" download="${c.download_name}">下载这段</a>
+            </div>
+          </div>
+        </article>
+      `).join("");
+      $("#results").innerHTML = `<h2>剪辑结果</h2><div class="grid">${cards}</div>`;
+    }
+
+    loadHealth();
+  </script>
+</body>
+</html>
