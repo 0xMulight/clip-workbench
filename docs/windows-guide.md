@@ -3,14 +3,13 @@
 
 ## Windows 一键包（推荐）
 
-[下载完整一键包 ZIP](https://github.com/0xMulight/clip-workbench/releases/download/v0.3.0/clip-workbench-windows-x64.zip) · [Release 与 SHA256](https://github.com/0xMulight/clip-workbench/releases/tag/v0.3.0)
+[下载完整一键包 ZIP](https://github.com/0xMulight/clip-workbench/releases/download/v0.3.1/clip-workbench-windows-x64.zip) · [Release 与 SHA256](https://github.com/0xMulight/clip-workbench/releases/tag/v0.3.1)
 
 1. 下载后右键 ZIP →「全部解压」，建议放在桌面或文档目录，不要直接在 ZIP 预览里双击。
 2. 进入解压后的文件夹，双击 **`启动沐光切片.bat`**。
 3. 浏览器会自动打开 `http://127.0.0.1:8765/`。粘贴视频帖链接、导入配方，再点「拉取并拼接」。
 4. 预览并下载拼接片；各段仍可单独下载。关闭黑色启动窗口即停止服务。
 
-已发布的 v0.3.0 一键包仍使用旧文件名 `启动片段工作台.bat`；源码和新打包使用 `启动沐光切片.bat`。
 
 不需要安装 Python / FFmpeg、不改 PATH、不需要管理员权限。支持 Windows 10/11 x64（不是 32 位或 ARM 原生包）。
 旧版 yt-dlp 失效时，先关闭沐光切片，再双击 **`更新下载组件.bat`**；更新只影响包内下载器，不碰系统 Python。

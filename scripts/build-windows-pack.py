@@ -113,7 +113,7 @@ def main():
     parser.add_argument("--cache-dir", type=Path, default=Path.home() / ".cache" / "clip-workbench-pack")
     parser.add_argument("--output-dir", type=Path, default=REPO / "dist")
     parser.add_argument("--ref", default="HEAD", help="tracked source commit, including packaging templates")
-    parser.add_argument("--version", default="0.3.0")
+    parser.add_argument("--version", default="0.3.1")
     args = parser.parse_args()
     args.cache_dir.mkdir(parents=True, exist_ok=True)
     args.output_dir.mkdir(parents=True, exist_ok=True)
