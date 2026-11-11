@@ -44,6 +44,6 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo 正在启动片段工作台…
+echo 正在启动沐光切片…
 python app.py
 pause

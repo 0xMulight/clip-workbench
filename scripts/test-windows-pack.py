@@ -22,7 +22,7 @@ def main():
         manifest = json.loads(read("COMPONENTS.json"))
         for name, expected in manifest["files_sha256"].items():
             assert hashlib.sha256(read(name)).hexdigest() == expected, name
-        for name in ("启动片段工作台.bat", "更新下载组件.bat"):
+        for name in ("启动沐光切片.bat", "更新下载组件.bat"):
             data = read(name)
             assert not data.startswith(b"\xef\xbb\xbf")
             assert b"\r\n" in data and b"\n" not in data.replace(b"\r\n", b"")
