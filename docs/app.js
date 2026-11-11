@@ -54,12 +54,96 @@
       bar.classList.remove("hidden");
       fill.style.width = Math.max(0, Math.min(100, percent)) + "%";
     }
+    if (state.jobActive) {
+      const mapped = percent == null ? 0 : Math.round(percent * 0.15);
+      setJob(text, kind === "bad" ? "bad" : "", mapped);
+    }
   }
 
   function setHint(text, kind) {
     const el = $("#hint");
     el.textContent = text;
     el.className = "hint" + (kind ? " " + kind : "");
+  }
+
+  function setMeter(statusSel, barSel, fillSel, text, kind, percent, scroll) {
+    const el = $(statusSel);
+    if (el) {
+      el.textContent = text;
+      el.className = "job-status" + (kind ? " " + kind : "");
+      el.classList.remove("hidden");
+      if (scroll) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    const bar = $(barSel);
+    const fill = $(fillSel);
+    if (!bar || !fill) return;
+    bar.classList.remove("indeterminate");
+    if (percent == null) {
+      bar.classList.add("hidden");
+      fill.style.width = "0%";
+    } else if (percent < 0) {
+      bar.classList.remove("hidden");
+      bar.classList.add("indeterminate");
+      fill.style.width = "32%";
+    } else {
+      bar.classList.remove("hidden");
+      fill.style.width = Math.max(0, Math.min(100, percent)) + "%";
+    }
+  }
+
+  function setJob(text, kind, percent) {
+    setHint(text, kind);
+    setMeter("#job-status", "#job-bar", "#job-bar-fill", text, kind, percent, true);
+  }
+
+  function setUpload(text, kind, percent) {
+    setHint(text, kind);
+    setMeter("#upload-status", "#upload-bar", "#upload-bar-fill", text, kind, percent, true);
+  }
+
+  async function readFileWithProgress(file, onProgress) {
+    const total = file.size || 0;
+    if (typeof file.stream === "function") {
+      const reader = file.stream().getReader();
+      const chunks = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.byteLength;
+        if (onProgress) onProgress(received, total || received);
+      }
+      const buf = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) {
+        buf.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      if (onProgress) onProgress(received, total || received);
+      return buf;
+    }
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onprogress = (e) => {
+        if (onProgress && e.lengthComputable) onProgress(e.loaded, e.total);
+      };
+      reader.onload = () => {
+        const buf = new Uint8Array(reader.result);
+        if (onProgress) onProgress(buf.byteLength, total || buf.byteLength);
+        resolve(buf);
+      };
+      reader.onerror = () => reject(new Error("读取视频文件失败，请再试一次。"));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function flashDrop() {
+    const drop = $("#drop");
+    if (!drop) return;
+    drop.classList.add("flash");
+    drop.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => drop.classList.remove("flash"), 1600);
   }
 
   async function toBlobURL(url, mimeType, onProgress) {
@@ -186,6 +270,12 @@
     return raw;
   }
 
+  function stitchFilename(file) {
+    const raw = ((file && file.name) || "video").replace(/\.[^.]+$/, "");
+    const cleaned = raw.replace(/[\\/:*?"<>|]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "video";
+    return cleaned + "-拼接.mp4";
+  }
+
   function addRow(clip = {}) {
     const tr = document.createElement("tr");
     const point = escapeHtml(clip.point || "");
@@ -194,6 +284,7 @@
       <td><input class="end" placeholder="09:49" value="${escapeHtml(clip.end || "")}"></td>
       <td><input class="title" placeholder="标题" value="${escapeHtml(clip.title || "")}" data-point="${point}"></td>
       <td class="check"><input class="rec" type="checkbox" ${clip.recommend ? "checked" : ""}></td>
+      <td class="act"><button type="button" class="ghost row-del" aria-label="删除这段">删除</button></td>
     `;
     $("#rows").appendChild(tr);
   }
@@ -225,7 +316,6 @@
   function showSource(file, duration, url) {
     state.file = file;
     state.duration = duration;
-    state.fileBuffer = null;
     revokeSource();
     state.sourceUrl = url;
     $("#source-box").classList.remove("hidden");
@@ -260,14 +350,27 @@
 
   async function handleFile(file) {
     if (!file) return;
-    setHint("正在读取视频信息…");
+    state.fileBuffer = null;
+    const name = file.name || "视频";
+    const sizeLabel = formatBytes(file.size);
+    setUpload(sizeLabel ? `正在读取「${name}」（${sizeLabel}）…` : `正在读取「${name}」…`, "", 0);
     try {
+      const buf = await readFileWithProgress(file, (loaded, total) => {
+        const t = total || file.size || loaded;
+        const pct = t ? Math.min(99, Math.round((loaded / t) * 100)) : 0;
+        const detail = formatBytes(loaded) + (t ? " / " + formatBytes(t) : "");
+        setUpload(`正在读取「${name}」… ${detail}`, "", pct);
+      });
+      setUpload("正在读取视频信息…", "", 99);
       const { duration, url } = await readDuration(file);
       showSource(file, duration, url);
+      state.fileBuffer = buf;
       if (!$$("#rows tr").length) addRow();
-      setHint("视频已在本地打开，不会上传。核对时间戳后点「开始剪辑」。");
+      const ready = `视频已在本地打开（${sizeLabel || formatBytes(buf.byteLength)}），不会传到服务器。核对时间戳后即可剪辑。`;
+      setUpload(ready, "ok", 100);
+      setMeter("#job-status", "#job-bar", "#job-bar-fill", "原片已打开，填好时间戳后就可以开始剪辑。", "ok", null, false);
     } catch (err) {
-      setHint(readableError(err, "无法读取这段视频。"), "bad");
+      setUpload(readableError(err, "无法读取这段视频。"), "bad");
     }
   }
 
@@ -298,6 +401,12 @@
   });
 
   $("#add-row").addEventListener("click", () => addRow());
+  $("#rows").addEventListener("click", (e) => {
+    const btn = e.target.closest(".row-del");
+    if (!btn) return;
+    const tr = btn.closest("tr");
+    if (tr) tr.remove();
+  });
 
   const X_GUIDE = "公开网页没法直接下载推特视频。请先把原片保存到电脑再上传。若要粘贴链接后自动下载并按配方拼接，请用本机版：双击「启动沐光切片.bat」，或运行 python app.py。";
 
@@ -312,9 +421,6 @@
     $("#rows").innerHTML = "";
     (data.clips || []).forEach(addRow);
     $("#editor").classList.remove("hidden");
-    if (data.source_url) {
-      $("#x-url").value = data.source_url;
-    }
     const count = (data.clips || []).length;
     let text = message || `已导入 ${count} 段时间戳。`;
     if (data.source_url) {
@@ -322,6 +428,11 @@
     }
     setHint(text, data.source_url ? "bad" : "");
     if (data.source_url) flashXCallout();
+    if (!state.file) {
+      setJob("时间戳已填好。请先在上方上传原片，再点「开始剪辑并拼接」。", data.source_url ? "bad" : "");
+    } else {
+      setJob("时间戳已填好，可以开始剪辑。", "ok");
+    }
   }
 
   function importRecipeText(text) {
@@ -331,8 +442,6 @@
       return true;
     } catch (err) {
       if (err && err.code === "X_URL") {
-        const url = err.url || extractXUrl(text);
-        if (url) $("#x-url").value = url;
         flashXCallout();
         setHint(X_GUIDE, "bad");
         return false;
@@ -382,24 +491,6 @@
     }
   });
 
-  $("#x-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    const value = $("#x-url").value.trim();
-    if (!value) {
-      flashXCallout();
-      setHint(X_GUIDE, "bad");
-      return;
-    }
-    if (looksLikeXUrl(value) || extractXUrl(value)) {
-      const url = extractXUrl(value) || value;
-      $("#x-url").value = url;
-      flashXCallout();
-      setHint(X_GUIDE, "bad");
-      return;
-    }
-    setHint("请填写完整的 x.com 或 twitter.com 帖子链接。公开网页不会去下载它，只会提示你改用本机版或自行上传原片。", "bad");
-    flashXCallout();
-  });
 
   $("#reload-engine").addEventListener("click", () => {
     if (state.ffmpeg) {
@@ -421,7 +512,12 @@
 
   async function getSourceBuffer(file) {
     if (state.fileBuffer && state.file === file) return state.fileBuffer;
-    const buf = new Uint8Array(await file.arrayBuffer());
+    const name = (file && file.name) || "视频";
+    const buf = await readFileWithProgress(file, (loaded, total) => {
+      const t = total || (file && file.size) || loaded;
+      const pct = t ? Math.min(99, Math.round((loaded / t) * 100)) : 0;
+      setJob(`正在把「${name}」读入剪辑引擎… ${formatBytes(loaded)}${t ? " / " + formatBytes(t) : ""}`, "", 16 + Math.round(pct * 0.02));
+    });
     state.fileBuffer = buf;
     return buf;
   }
@@ -457,7 +553,7 @@
       const encodeArgs = ["-f", "concat", "-safe", "0", "-i", "concat.txt", ...ENCODE_ARGS, outName];
       code = await runFfmpeg(ffmpeg, encodeArgs, ({ progress }) => {
         const pct = Math.max(0, Math.min(99, Math.round((progress || 0) * 100)));
-        setHint(`正在拼接亮点片… ${pct}%`);
+        setJob(`正在拼接亮点片… ${pct}%`, "", 90 + Math.round(pct * 0.09));
       });
     }
     try { await ffmpeg.deleteFile("concat.txt"); } catch (_) {}
@@ -469,11 +565,12 @@
   async function runCut(stitch) {
     const clips = readClips();
     if (!state.file) {
-      setHint("请先上传一段本地视频。公开网页不能直接下载推特链接里的片子。", "bad");
+      setJob("请先在上方上传一段本地视频，再点开始剪辑。公开网页不能直接下载推特链接里的片子。", "bad");
+      flashDrop();
       return;
     }
     if (!clips.length) {
-      setHint("请至少填写或导入一段开始和结束时间。支持 ss、mm:ss 或 hh:mm:ss。", "bad");
+      setJob("请至少填写或导入一段开始和结束时间。支持 ss、mm:ss 或 hh:mm:ss。", "bad");
       return;
     }
 
@@ -481,19 +578,20 @@
     try {
       prepared = clips.map((c, i) => validateClip(c, i + 1, state.duration));
     } catch (err) {
-      setHint(err.message || "时间戳有误。", "bad");
+      setJob(err.message || "时间戳有误。", "bad");
       return;
     }
 
     const buttons = [$("#cut-btn"), $("#stitch-btn")];
     buttons.forEach((btn) => { btn.disabled = true; });
-    setHint("正在准备剪辑引擎…");
+    state.jobActive = true;
+    setJob("正在准备剪辑引擎…第一次大约要下载 32 MB，进度在按钮下方。", "", 1);
     try {
       const ffmpeg = await loadEngine();
       if (!ffmpeg.loaded) throw new Error("剪辑引擎还没就绪");
 
       const inputName = "source" + sourceExt(state.file);
-      setHint("正在把视频读入剪辑引擎（只留在浏览器内存里）…");
+      setJob("正在把视频读入剪辑引擎（只留在浏览器内存里）…", "", 16);
       const data = await getSourceBuffer(state.file);
       await ffmpeg.writeFile(inputName, data);
 
@@ -502,10 +600,13 @@
       const segNames = [];
       for (const clip of prepared) {
         const outName = "seg-" + String(clip.index).padStart(2, "0") + ".mp4";
-        setHint(`正在剪辑 ${clip.index}/${prepared.length}：${clip.title}…`);
+        const base = 18;
+        const span = 70 / prepared.length;
+        const startPct = base + span * (clip.index - 1);
+        setJob(`正在剪辑 ${clip.index}/${prepared.length}：${clip.title}…`, "", startPct);
         const onProgress = ({ progress }) => {
           const pct = Math.max(0, Math.min(99, Math.round((progress || 0) * 100)));
-          setHint(`正在剪辑 ${clip.index}/${prepared.length}：${clip.title}… ${pct}%`);
+          setJob(`正在剪辑 ${clip.index}/${prepared.length}：${clip.title}… ${pct}%`, "", startPct + span * (pct / 100));
         };
         const code = await runFfmpeg(ffmpeg, [
           "-ss", clip.start.toFixed(3),
@@ -536,7 +637,7 @@
 
       let highlight = null;
       if (stitch) {
-        setHint("正在按配方顺序拼接亮点片…");
+        setJob("正在按配方顺序拼接亮点片…", "", 90);
         const outName = "highlight.mp4";
         if (segNames.length === 1) {
           await concatSegments(ffmpeg, segNames, outName);
@@ -552,7 +653,7 @@
           title: "亮点拼接",
           seconds: Math.round(expected * 100) / 100,
           url,
-          filename: "highlight.mp4",
+          filename: stitchFilename(state.file),
         };
         try { await ffmpeg.deleteFile(outName); } catch (_) {}
       }
@@ -564,13 +665,14 @@
 
       renderResults(results, highlight);
       if (highlight) {
-        setHint(`已切出 ${results.length} 个片段，并拼成一条约 ${highlight.seconds} 秒的亮点片，可预览和下载。`);
+        setJob(`已切出 ${results.length} 个片段，并拼成一条约 ${highlight.seconds} 秒的亮点片，可预览和下载。`, "ok", 100);
       } else {
-        setHint(`已切出 ${results.length} 个片段，可在页面里预览和下载。若要合成一条，请点「开始剪辑并拼接」。`);
+        setJob(`已切出 ${results.length} 个片段，可在页面里预览和下载。若要合成一条，请点「开始剪辑并拼接」。`, "ok", 100);
       }
     } catch (err) {
-      setHint(readableError(err, "剪辑失败。"), "bad");
+      setJob(readableError(err, "剪辑失败。"), "bad");
     } finally {
+      state.jobActive = false;
       buttons.forEach((btn) => { btn.disabled = false; });
     }
   }
@@ -621,7 +723,7 @@
       `)
       .join("");
     $("#results").innerHTML = `<h2>剪辑结果</h2><div class="grid">${highlightCard}${cards}</div>`;
+    $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  loadEngine().catch(() => {});
 })();

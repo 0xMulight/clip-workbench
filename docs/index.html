@@ -145,6 +145,30 @@
     .hint, .note, footer { color: var(--dim); font-size: 13px; }
     .hint { margin: 0 0 28px; }
     .hint.bad { color: var(--cinnabar); }
+    .job-status { margin: 14px 0 0; font-size: 13px; color: var(--dim); }
+    .job-status.bad { color: var(--cinnabar); }
+    .job-status.ok { color: var(--gold); }
+    .job-bar {
+      margin-top: 10px;
+      width: 100%;
+      max-width: 100%;
+      height: 3px;
+      background: var(--line-strong);
+      overflow: hidden;
+    }
+    td.act { width: 64px; padding-top: 8px; }
+    td.act button { padding: 6px 10px; font-size: 12px; font-weight: 500; }
+    .job-bar span { transition: width 0.15s linear; }
+    .job-bar.indeterminate span {
+      width: 32% !important;
+      transition: none;
+      animation: job-slide 1.2s ease-in-out infinite;
+    }
+    @keyframes job-slide {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(360%); }
+    }
+    .drop.flash { border-color: var(--cinnabar); }
     .drop {
       background: transparent;
       border: 1px dashed var(--line-strong);
@@ -272,7 +296,7 @@
       </div>
       <p class="tagline">按时间戳切开亮点，再拼成一条</p>
       <div class="engine">
-        <p class="status loading" id="engine-status">正在准备剪辑引擎…</p>
+        <p class="status" id="engine-status">剪辑引擎会在开始剪辑时加载，大约 32 MB，只需一次。</p>
         <div class="progress hidden" id="engine-bar"><span id="engine-bar-fill"></span></div>
       </div>
     </header>
@@ -302,16 +326,14 @@
         <span class="drop-title">把视频拖到这里，或点「选择视频」</span>
         <span class="drop-sub">支持常见的 MP4、WebM 等格式。文件只会留在这台电脑的浏览器里。</span>
       </div>
+      <p class="job-status hidden" id="upload-status"></p>
+      <div class="progress job-bar hidden" id="upload-bar"><span id="upload-bar-fill"></span></div>
     </div>
 
     <div class="callout" id="x-callout">
       <strong>公开网页不能直接下载 X / Twitter 视频。</strong>
-      请先把原片保存到电脑再上传。若要粘贴帖子链接后自动下载并拼接，请用本机版：双击「<code>启动沐光切片.bat</code>」，或运行 <code>python app.py</code>。
+      请先把原片保存到电脑，再拖到上方或点「选择视频」。若要粘贴帖子链接后自动下载，请用<a href="https://github.com/0xMulight/clip-workbench/releases/download/v0.3.0/clip-workbench-windows-x64.zip">本机版一键包</a>，解压后双击启动文件。当前 v0.3.0 包里的文件名是「启动片段工作台.bat」。
     </div>
-    <form class="bar" id="x-form">
-      <input id="x-url" type="url" spellcheck="false" placeholder="若只有帖子链接，可贴在这里查看说明">
-      <button type="submit" class="ghost" id="x-url-btn">我只有链接</button>
-    </form>
 
     <section class="recipe-box">
       <h2>亮点配方</h2>
@@ -339,6 +361,7 @@
             <th>结束</th>
             <th>标题</th>
             <th>先发</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -348,6 +371,8 @@
         <button type="button" class="ghost" id="cut-btn">只切各段</button>
         <button type="button" id="stitch-btn">开始剪辑并拼接</button>
       </div>
+      <p class="job-status" id="job-status">请先在上方上传原片，再开始剪辑。进度会显示在这里。</p>
+      <div class="progress job-bar hidden" id="job-bar"><span id="job-bar-fill"></span></div>
     </section>
 
     <section id="results"></section>

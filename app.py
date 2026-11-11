@@ -372,7 +372,7 @@ def import_url(url: str) -> dict:
     dest = dest_dir / "source.mp4"
     if dest.exists() and dest.stat().st_size > 0:
         duration = ffprobe_duration(dest)
-        meta = {"id": status, "url": url, "duration": duration, "path": str(dest)}
+        meta = {"id": status, "url": url, "name": status, "duration": duration, "path": str(dest)}
         (dest_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         return meta
 
@@ -409,7 +409,7 @@ def import_url(url: str) -> dict:
             candidate.replace(dest)
 
     duration = ffprobe_duration(dest)
-    meta = {"id": status, "url": url, "duration": duration, "path": str(dest)}
+    meta = {"id": status, "url": url, "name": status, "duration": duration, "path": str(dest)}
     (dest_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta
 
@@ -454,7 +454,7 @@ def import_local(src: Path) -> dict:
             if proc.returncode != 0:
                 raise RuntimeError(proc.stderr.strip() or "无法读取这个本地视频")
     duration = ffprobe_duration(dest)
-    meta = {"id": source_id, "url": "", "duration": duration, "path": str(dest)}
+    meta = {"id": source_id, "url": "", "name": src.stem, "duration": duration, "path": str(dest)}
     (dest_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return meta
 
@@ -560,12 +560,21 @@ def cut_clips(source_id: str, clips: list[dict], stitch: bool = False) -> dict:
         concat_videos(paths, dest)
         actual = round(ffprobe_duration(dest), 2)
         expected = round(sum(item["seconds"] for item in results), 2)
+        source_name = source_id
+        meta_path = src_dir / "meta.json"
+        if meta_path.exists():
+            try:
+                meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                source_name = str(meta.get("name") or meta.get("id") or source_id)
+            except Exception:
+                source_name = source_id
+        download_name = f"{slug(source_name, 'video')}-拼接.mp4"
         payload["highlight"] = {
             "title": "亮点拼接",
             "seconds": actual,
             "expected_seconds": expected,
             "file": f"/media/output/{source_id}/highlight.mp4",
-            "download_name": "highlight.mp4",
+            "download_name": download_name,
         }
     return payload
 
