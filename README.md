@@ -31,13 +31,12 @@
 
 ### Windows 一键包（推荐，Windows 10/11 x64）
 
-**[下载 Windows 一键包 ZIP](https://github.com/0xMulight/clip-workbench/releases/download/v0.3.0/clip-workbench-windows-x64.zip)** · [Release 说明与 SHA256](https://github.com/0xMulight/clip-workbench/releases/tag/v0.3.0)
+**[下载 Windows 一键包 ZIP](https://github.com/0xMulight/clip-workbench/releases/download/v0.3.1/clip-workbench-windows-x64.zip)** · [Release 说明与 SHA256](https://github.com/0xMulight/clip-workbench/releases/tag/v0.3.1)
 
 1. 下载后右键 ZIP →「全部解压」，不要在压缩包预览里运行。
 2. 打开解压后的文件夹，双击 **`启动沐光切片.bat`**。
 3. 浏览器自动打开 `http://127.0.0.1:8765/`，粘贴视频帖链接、导入配方，点「拉取并拼接」。
 
-已发布的 v0.3.0 一键包仍使用旧文件名 `启动片段工作台.bat`；源码和新打包使用 `启动沐光切片.bat`。
 
 无需安装 Python / FFmpeg，不改系统 PATH，不需要管理员权限。保持启动窗口开启，关闭它即停止。
 组件随包附带；若旧下载器失效，先关闭沐光切片，再双击 **`更新下载组件.bat`**。
