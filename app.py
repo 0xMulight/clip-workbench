@@ -707,7 +707,7 @@ def main() -> None:
     mimetypes.add_type("video/mp4", ".mp4")
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     url = f"http://{HOST}:{PORT}/"
-    print(f"片段工作台已启动：{url}")
+    print(f"沐光切片已启动：{url}")
     print("这是本地服务，只在这台电脑上访问。按 Ctrl+C 结束。")
     try:
         webbrowser.open(url)

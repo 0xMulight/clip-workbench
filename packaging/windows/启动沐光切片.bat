@@ -13,11 +13,11 @@ if not exist "app.py" goto incomplete
 if not exist "start_portable.py" goto incomplete
 if not exist "runtime\Lib\site-packages\yt_dlp\__init__.py" goto incomplete
 set "PATH=%CD%\bin;%PATH%"
-echo 正在启动片段工作台，请保持此窗口开启，不要关闭。
+echo 正在启动沐光切片，请保持此窗口开启，不要关闭。
 echo 浏览器地址：http://127.0.0.1:8765/
 "%CD%\runtime\python.exe" -X utf8 -B "%CD%\start_portable.py"
 echo.
-echo 工作台已停止。如果窗口报错，请查看同文件夹的 startup-error.log 和使用说明.txt。
+echo 沐光切片已停止。如果窗口报错，请查看同文件夹的 startup-error.log 和使用说明.txt。
 pause
 popd
 exit /b

@@ -32,7 +32,7 @@ def main():
     with socket.socket() as probe:
         probe.settimeout(0.3)
         if probe.connect_ex(("127.0.0.1", 8765)) == 0:
-            raise RuntimeError("请先关闭工作台窗口，再更新下载组件。")
+            raise RuntimeError("请先关闭沐光切片窗口，再更新下载组件。")
     print("正在检查 PyPI 上的 yt-dlp 稳定版…", flush=True)
     meta = json.loads(fetch("https://pypi.org/pypi/yt-dlp/json", 5_000_000))
     # Fail closed for a future unfamiliar constraint instead of installing an
@@ -95,7 +95,7 @@ def main():
             for name in moved:
                 (backup / name).rename(TARGET / name)
             raise
-    print("更新成功。可以重新双击「启动片段工作台.bat」。", flush=True)
+    print("更新成功。可以重新双击「启动沐光切片.bat」。", flush=True)
     print("更新版本及许可随包保存在 runtime/Lib/site-packages/yt_dlp-*.dist-info/。", flush=True)
 
 

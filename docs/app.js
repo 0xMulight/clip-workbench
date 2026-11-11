@@ -299,7 +299,7 @@
 
   $("#add-row").addEventListener("click", () => addRow());
 
-  const X_GUIDE = "公开网页没法直接下载推特视频。请先把原片保存到电脑再上传。若想粘贴链接后自动下载并按配方拼接，请用本机版：双击「启动工作台.bat」，或运行 python app.py。";
+  const X_GUIDE = "公开网页没法直接下载推特视频。请先把原片保存到电脑再上传。若要粘贴链接后自动下载并按配方拼接，请用本机版：双击「启动沐光切片.bat」，或运行 python app.py。";
 
   function flashXCallout() {
     const el = $("#x-callout");

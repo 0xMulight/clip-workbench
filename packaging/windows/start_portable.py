@@ -26,10 +26,10 @@ def main():
     with socket.socket() as probe:
         probe.settimeout(0.3)
         if probe.connect_ex(("127.0.0.1", 8765)) == 0:
-            raise RuntimeError("8765 端口已被使用。如果工作台已经开着，请直接访问 http://127.0.0.1:8765/；否则先关闭占用端口的程序。")
+            raise RuntimeError("8765 端口已被使用。如果沐光切片已经开着，请直接访问 http://127.0.0.1:8765/；否则先关闭占用端口的程序。")
     import yt_dlp  # noqa: F401 -- verify bundled import before starting
     import app
-    print("工作台只在本机运行；浏览器会自动打开。请保持此窗口开启，关闭窗口即可停止。", flush=True)
+    print("沐光切片只在本机运行；浏览器会自动打开。请保持此窗口开启，关闭窗口即可停止。", flush=True)
     app.main()
 
 

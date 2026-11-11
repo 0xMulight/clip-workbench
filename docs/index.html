@@ -3,50 +3,116 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>片段工作台</title>
-  <meta name="description" content="在浏览器里按亮点配方把视频切成片段并自动拼成一条。非官方工具，不能替代 X 的 Clip video。">
+  <title>沐光切片 · Mulight Clips</title>
+  <meta name="description" content="沐光切片：在浏览器里按时间戳切开亮点，再拼成一条。非官方工具，不能替代 X 的 Clip video。">
+  <meta name="theme-color" content="#0a0908">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@600&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #11110f;
-      --paper: #1a1916;
-      --line: #2c2a25;
-      --text: #efeae1;
-      --muted: #9a9386;
-      --dim: #6f6a60;
-      --accent: #d24a2c;
-      --good: #c9b48a;
-      --warn: #d2a35c;
+      --bg: #0a0908;
+      --paper: #12100e;
+      --ink: #16120c;
+      --line: rgba(239, 232, 220, 0.08);
+      --line-strong: rgba(239, 232, 220, 0.16);
+      --text: #efe8dc;
+      --muted: #9a9184;
+      --dim: #6d665c;
+      --gold: #c4a574;
+      --gold-soft: rgba(196, 165, 116, 0.55);
+      --cinnabar: #c45c3e;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
     body {
-      font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
-      line-height: 1.55;
+      font-family: "Source Sans 3", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
       min-height: 100vh;
+      background-color: var(--bg);
+      background-image: radial-gradient(ellipse 72% 42% at 50% -8%, rgba(196, 165, 116, 0.12), transparent 68%);
+      background-repeat: no-repeat;
     }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 36px 22px 80px; }
-    header h1 { font-size: 22px; font-weight: 600; letter-spacing: 0.04em; margin: 0 0 8px; }
-    header p { margin: 0; color: var(--muted); font-size: 14px; max-width: 46em; }
-    .status { margin: 16px 0 0; font-size: 13px; color: var(--dim); }
-    .status.bad { color: #e08b7a; }
-    .status.ok { color: var(--good); }
-    .status.loading { color: var(--warn); }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 72px 28px 104px; }
+    .masthead { margin: 0 0 8px; }
+    .brand { display: flex; align-items: center; gap: 18px; }
+    .mark {
+      flex: none;
+      width: 1px;
+      height: 58px;
+      background: linear-gradient(180deg, transparent 0%, var(--gold) 22%, #efe8dc 50%, var(--gold) 78%, transparent 100%);
+      box-shadow: 0 0 14px rgba(196, 165, 116, 0.4);
+    }
+    .brand-en {
+      margin: 0 0 8px;
+      font-family: "Source Sans 3", sans-serif;
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.34em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .masthead h1 {
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 46px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      line-height: 1.18;
+      margin: 0;
+    }
+    .tagline {
+      margin: 22px 0 0 19px;
+      color: var(--muted);
+      font-size: 16px;
+      letter-spacing: 0.08em;
+      max-width: none;
+    }
+    .engine { margin: 18px 0 0 19px; }
+    .status { margin: 0; font-size: 12px; color: var(--dim); letter-spacing: 0.04em; }
+    .status.bad { color: var(--cinnabar); }
+    .status.ok { color: var(--gold); }
+    .status.loading { color: var(--gold-soft); }
     .progress {
       margin-top: 10px;
-      height: 6px;
-      background: var(--line);
-      border-radius: 999px;
+      width: 168px;
+      height: 1px;
+      background: var(--line-strong);
+      border-radius: 0;
       overflow: hidden;
     }
     .progress span {
       display: block;
       height: 100%;
       width: 0%;
-      background: var(--good);
-      border-radius: 999px;
+      background: var(--gold);
+      border-radius: 0;
       transition: width 0.15s linear;
     }
-    .bar, .row { display: flex; gap: 10px; margin: 22px 0 12px; flex-wrap: wrap; align-items: center; }
+    .paths {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+      margin: 48px 0 56px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .path { padding: 22px 0 24px; }
+    .path-kicker {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .path p { margin: 0; color: var(--muted); font-size: 14px; }
+    .path-links { margin-top: 12px !important; }
+    a { color: var(--gold); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .path-links a { font-size: 13px; margin-right: 20px; }
+    .bar, .row { display: flex; gap: 10px; margin: 0 0 14px; flex-wrap: wrap; align-items: center; }
+    .work { margin-top: 8px; }
     input, textarea {
       background: var(--paper);
       border: 1px solid var(--line);
@@ -57,119 +123,190 @@
       outline: none;
       font-family: inherit;
     }
-    input:focus, textarea:focus { border-color: #5a554c; }
+    input:focus, textarea:focus { border-color: rgba(196, 165, 116, 0.45); }
+    .bar input[type="url"] { flex: 1; min-width: 240px; }
     button, .btn {
       appearance: none; border: 0; cursor: pointer;
-      background: var(--text); color: #161512;
-      border-radius: 8px; padding: 12px 16px;
-      font-size: 14px; font-weight: 600;
+      background: #efe8dc; color: var(--ink);
+      border-radius: 8px; padding: 11px 18px;
+      font-size: 13px; font-weight: 600;
+      letter-spacing: 0.04em;
       text-decoration: none; display: inline-block;
+      font-family: inherit;
+      transition: background 0.15s ease, border-color 0.15s ease;
     }
-    button:hover, .btn:hover { filter: brightness(0.95); }
+    button:hover, .btn:hover { background: #f6f1e8; }
     button.ghost, .btn.ghost {
-      background: transparent; color: var(--text); border: 1px solid var(--line);
+      background: transparent; color: var(--text);
+      border: 1px solid var(--line-strong);
     }
+    button.ghost:hover, .btn.ghost:hover { border-color: rgba(239, 232, 220, 0.3); background: transparent; }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .hint, .note, footer { color: var(--dim); font-size: 13px; }
-    .hint { margin: 0 0 22px; }
-    .hint.bad { color: #e08b7a; }
+    .hint { margin: 0 0 28px; }
+    .hint.bad { color: var(--cinnabar); }
     .drop {
-      background: var(--paper);
-      border: 1px dashed var(--line);
-      border-radius: 14px;
-      padding: 22px 18px;
-      margin: 20px 0 0;
+      background: transparent;
+      border: 1px dashed var(--line-strong);
+      border-radius: 10px;
+      padding: 52px 28px;
+      margin: 0 0 36px;
       text-align: center;
       color: var(--muted);
       font-size: 14px;
     }
-    .drop.over { border-color: var(--good); color: var(--text); }
-    .drop strong { color: var(--text); font-weight: 600; }
+    .drop.over { border-color: var(--gold); color: var(--text); background: rgba(196, 165, 116, 0.04); }
+    .drop-title { display: block; color: var(--text); font-size: 15px; letter-spacing: 0.04em; margin-bottom: 8px; }
+    .drop-sub { display: block; color: var(--dim); font-size: 13px; }
     .source {
       background: var(--paper);
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 10px;
       padding: 16px;
-      margin: 8px 0 22px;
+      margin: 8px 0 28px;
     }
     .source video { width: 100%; max-height: 360px; background: #000; border-radius: 8px; display: block; }
     .source .meta { margin-top: 10px; color: var(--muted); font-size: 13px; }
     table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
     th, td { text-align: left; padding: 8px 6px; vertical-align: top; font-size: 14px; }
-    th { color: var(--muted); font-weight: 500; font-size: 12px; }
+    th { color: var(--muted); font-weight: 500; font-size: 12px; letter-spacing: 0.06em; }
     td input { width: 100%; padding: 8px 10px; }
     td.check { width: 52px; padding-top: 14px; }
     .grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
     @media (min-width: 860px) {
       .grid { grid-template-columns: 1fr 1fr; }
-      .card.feat { grid-column: 1 / -1; }
+      .card.feat, .card.highlight { grid-column: 1 / -1; }
     }
     .card {
       background: var(--paper);
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 10px;
       overflow: hidden;
     }
-    .card.feat { border-color: #5a3a32; }
+    .card.feat { border-color: var(--line-strong); }
+    .card.highlight { border-color: var(--gold-soft); }
     .media { background: #000; aspect-ratio: 16/9; }
     .media video { width: 100%; height: 100%; display: block; }
-    .body { padding: 16px 18px 18px; }
-    .body h3 { margin: 0 0 8px; font-size: 17px; }
-    .body .point { margin: 0 0 8px; font-size: 14px; }
+    .body { padding: 18px 20px 20px; }
+    .body h3 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
+    .body .point { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
     .meta-line { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-    .badge { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 999px; font-weight: 600; }
-    .warn { color: var(--warn); font-size: 13px; margin: 6px 0 0; }
+    .badge {
+      border: 1px solid var(--gold-soft);
+      color: var(--gold);
+      background: transparent;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      padding: 2px 7px;
+      border-radius: 2px;
+      font-weight: 500;
+    }
+    .warn { color: var(--cinnabar); font-size: 13px; margin: 6px 0 0; }
     .download { margin-top: 14px; }
     .hidden { display: none; }
-    h2 { font-size: 16px; font-weight: 600; margin: 28px 0 10px; }
-    footer { margin-top: 48px; max-width: 46em; }
-    footer a { color: var(--muted); }
+    h2 {
+      font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      margin: 36px 0 12px;
+    }
+    footer {
+      margin-top: 64px;
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+      max-width: 42em;
+    }
+    footer p { margin: 0 0 10px; }
+    footer a { color: var(--gold); }
+    .note { margin: 36px 0 0; max-width: 42em; }
     #file, #recipe-file { display: none; }
     textarea {
       width: 100%;
-      min-height: 120px;
+      min-height: 132px;
       resize: vertical;
-      line-height: 1.5;
+      line-height: 1.55;
     }
     .callout {
-      background: #241c16;
-      border: 1px solid #5a3a32;
-      border-radius: 14px;
-      padding: 14px 16px;
-      margin: 18px 0 0;
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 0 0 12px;
       color: var(--muted);
       font-size: 13px;
+      line-height: 1.7;
     }
-    .callout strong { color: var(--text); font-weight: 600; }
-    .callout.flash { border-color: var(--warn); }
-    .recipe-box { margin: 22px 0 0; }
+    .callout strong { color: var(--text); font-weight: 500; }
+    .callout.flash { border-color: var(--gold-soft); }
+    .recipe-box { margin: 36px 0 0; }
     .recipe-box h2 { margin-top: 0; }
-    .card.highlight { border-color: var(--good); }
-    @media (min-width: 860px) {
-      .card.highlight { grid-column: 1 / -1; }
+    .recipe-box .bar { margin-top: 12px; }
+    code { font-family: "Source Sans 3", ui-monospace, monospace; font-size: 0.95em; color: var(--text); white-space: nowrap; }
+    @media (max-width: 719px) {
+      .path + .path { border-top: 1px solid var(--line); }
+    }
+    @media (min-width: 720px) {
+      .paths { grid-template-columns: 1fr 1fr; }
+      .path:first-child { padding-right: 36px; }
+      .path:last-child { padding-left: 36px; border-left: 1px solid var(--line); }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 44px 20px 80px; }
+      .masthead h1 { font-size: 32px; letter-spacing: 0.12em; }
+      .mark { height: 46px; }
+      .tagline, .engine { margin-left: 15px; }
+      .drop { padding: 36px 18px; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>片段工作台</h1>
-      <p>在浏览器里上传本地视频，导入亮点配方，按时间戳切出片段并自动拼成一条。无需安装 Python 或 FFmpeg。这不是 X 官方产品，切出来或拼好的都是普通 MP4，不会自动带「Clip from」署名。官方剪辑仍须在手机 App 里完成。</p>
-      <p class="status loading" id="engine-status">正在准备剪辑引擎…</p>
-      <div class="progress hidden" id="engine-bar"><span id="engine-bar-fill"></span></div>
+    <header class="masthead">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <p class="brand-en">MULIGHT CLIPS</p>
+          <h1>沐光切片</h1>
+        </div>
+      </div>
+      <p class="tagline">按时间戳切开亮点，再拼成一条</p>
+      <div class="engine">
+        <p class="status loading" id="engine-status">正在准备剪辑引擎…</p>
+        <div class="progress hidden" id="engine-bar"><span id="engine-bar-fill"></span></div>
+      </div>
     </header>
 
-    <div class="bar">
-      <button type="button" id="pick-btn">选择视频</button>
-      <button type="button" class="ghost" id="reload-engine">重新加载引擎</button>
-      <input id="file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*,.mp4,.webm,.mov,.mkv,.m4v">
+    <nav class="paths" aria-label="使用方式">
+      <div class="path">
+        <span class="path-kicker">网页版</span>
+        <p>上传本地视频，现在就可以剪。</p>
+      </div>
+      <div class="path">
+        <span class="path-kicker">本机版</span>
+        <p>粘贴 X 链接，自动下载并拼接。</p>
+        <p class="path-links">
+          <a href="https://github.com/0xMulight/clip-workbench/releases/download/v0.3.0/clip-workbench-windows-x64.zip">Windows 一键包</a>
+          <a href="https://github.com/0xMulight/clip-workbench/blob/main/docs/windows-guide.md">使用说明</a>
+        </p>
+      </div>
+    </nav>
+
+    <div class="work">
+      <div class="bar">
+        <button type="button" id="pick-btn">选择视频</button>
+        <button type="button" class="ghost" id="reload-engine">重新加载引擎</button>
+        <input id="file" type="file" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/*,.mp4,.webm,.mov,.mkv,.m4v">
+      </div>
+      <div class="drop" id="drop">
+        <span class="drop-title">把视频拖到这里，或点「选择视频」</span>
+        <span class="drop-sub">支持常见的 MP4、WebM 等格式。文件只会留在这台电脑的浏览器里。</span>
+      </div>
     </div>
-    <div class="drop" id="drop">把视频拖到这里，或点「选择视频」。支持常见的 MP4、WebM 等格式。<br><strong>文件只会留在这台电脑的浏览器里，不会上传到服务器。</strong></div>
 
     <div class="callout" id="x-callout">
       <strong>公开网页不能直接下载 X / Twitter 视频。</strong>
-      浏览器会被跨域拦住，这里也没有代为拉取的服务器。请先把原片保存到电脑再上传。
-      若想粘贴帖子链接后自动下载，并按亮点配方切片、拼成一条，请用本机版：双击「启动工作台.bat」，或运行 <code>python app.py</code>。
+      请先把原片保存到电脑再上传。若要粘贴帖子链接后自动下载并拼接，请用本机版：双击「<code>启动沐光切片.bat</code>」，或运行 <code>python app.py</code>。
     </div>
     <form class="bar" id="x-form">
       <input id="x-url" type="url" spellcheck="false" placeholder="若只有帖子链接，可贴在这里查看说明">
@@ -216,8 +353,9 @@
     <section id="results"></section>
     <p class="note">如果要把片段作为 X 官方剪辑发出并保留回流，请对着原帖在手机 App 里用「剪辑视频」，时间戳可以对着这里切好的片段来选。</p>
     <footer>
-      本机版可粘贴推特链接，在自己的电脑上用 Python 和 FFmpeg 自动下载，再按配方切片并拼成一条。说明见
-      <a href="https://github.com/0xMulight/clip-workbench">GitHub 仓库</a>。
+      <p>这不是 X 官方产品。切出来或拼好的都是普通 MP4，不会自动带「Clip from」署名。官方剪辑仍须在手机 App 里完成。</p>
+      <p>视频只留在这台电脑的浏览器里，不会上传到服务器。</p>
+      <p>本机版可粘贴帖子链接，在自己的电脑上自动下载并拼接。说明见 <a href="https://github.com/0xMulight/clip-workbench/blob/main/docs/windows-guide.md">使用说明</a>，源码在 <a href="https://github.com/0xMulight/clip-workbench">GitHub</a>。</p>
     </footer>
   </div>
 

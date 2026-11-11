@@ -97,7 +97,7 @@ def copy_tracked_source(ref, stage):
                 target = stage / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(source.extractfile(member).read())
-    for name in ("start_portable.py", "update_downloader.py", "启动片段工作台.bat", "更新下载组件.bat", "使用说明.txt"):
+    for name in ("start_portable.py", "update_downloader.py", "启动沐光切片.bat", "更新下载组件.bat", "使用说明.txt"):
         if name not in templates:
             raise RuntimeError(f"{ref} 不包含打包模板 {name}；先提交模板，然后从该提交构建。")
         data = templates[name]

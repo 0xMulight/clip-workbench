@@ -1,4 +1,4 @@
-# 片段工作台 / Clip Workbench
+# 沐光切片 / Mulight Clips
 
 按亮点配方把视频切成短片段，并自动拼成一条。打开网页就能用，无需安装 Python 或 FFmpeg。
 
@@ -34,11 +34,13 @@
 **[下载 Windows 一键包 ZIP](https://github.com/0xMulight/clip-workbench/releases/download/v0.3.0/clip-workbench-windows-x64.zip)** · [Release 说明与 SHA256](https://github.com/0xMulight/clip-workbench/releases/tag/v0.3.0)
 
 1. 下载后右键 ZIP →「全部解压」，不要在压缩包预览里运行。
-2. 打开解压后的文件夹，双击 **`启动片段工作台.bat`**。
+2. 打开解压后的文件夹，双击 **`启动沐光切片.bat`**。
 3. 浏览器自动打开 `http://127.0.0.1:8765/`，粘贴视频帖链接、导入配方，点「拉取并拼接」。
 
+已发布的 v0.3.0 一键包仍使用旧文件名 `启动片段工作台.bat`；源码和新打包使用 `启动沐光切片.bat`。
+
 无需安装 Python / FFmpeg，不改系统 PATH，不需要管理员权限。保持启动窗口开启，关闭它即停止。
-组件随包附带；若旧下载器失效，先关闭工作台，再双击 **`更新下载组件.bat`**。
+组件随包附带；若旧下载器失效，先关闭沐光切片，再双击 **`更新下载组件.bat`**。
 包未代码签名；如弹 SmartScreen，请先核对 Release 来源和 SHA256，再决定是否「更多信息 → 仍要运行」。
 已做 Linux 上的包结构/同版 Python 验证；Windows 可执行文件和首次启动仍需真实 Windows 验证。
 
@@ -47,7 +49,7 @@
 1. 安装 [Python 3.11+](https://www.python.org/downloads/)，安装时勾选 **Add python.exe to PATH**。
 2. 安装 [FFmpeg](https://www.gyan.dev/ffmpeg/builds/)，把里面带 `ffmpeg.exe` 和 `ffprobe.exe` 的 `bin` 目录加到系统 PATH。装完后关掉并重新打开窗口。
 3. 在 GitHub 下载本仓库的 ZIP 并解压，或先克隆再打开文件夹。
-4. 双击 **`启动工作台.bat`**。第一次会自动安装 `yt-dlp`，然后打开浏览器里的 `http://127.0.0.1:8765/`。
+4. 双击 **`启动沐光切片.bat`**。第一次会自动安装 `yt-dlp`，然后打开浏览器里的 `http://127.0.0.1:8765/`。
 
 更细的安装说明见 [docs/windows-guide.md](docs/windows-guide.md)。
 
