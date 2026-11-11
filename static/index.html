@@ -111,6 +111,42 @@
     .hint, .note, footer { color: var(--dim); font-size: 13px; }
     .hint { margin: 0 0 28px; }
     .hint.bad { color: var(--cinnabar); }
+    .progress {
+      margin-top: 10px;
+      width: 100%;
+      height: 3px;
+      background: var(--line-strong);
+      overflow: hidden;
+    }
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--gold);
+    }
+    .job-status { margin: 14px 0 0; font-size: 13px; color: var(--dim); }
+    .job-status.bad { color: var(--cinnabar); }
+    .job-status.ok { color: var(--gold); }
+    .job-bar {
+      margin-top: 10px;
+      width: 100%;
+      max-width: 100%;
+      height: 3px;
+      background: var(--line-strong);
+      overflow: hidden;
+    }
+    #import-form.flash input { border-color: var(--cinnabar); }
+    .job-bar span { transition: width 0.15s linear; }
+    .job-bar.indeterminate span {
+      width: 32% !important;
+      transition: none;
+      animation: job-slide 1.2s ease-in-out infinite;
+    }
+    @keyframes job-slide {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(360%); }
+    }
+    .drop.flash { border-color: var(--cinnabar); }
     .source, .recipe-box {
       background: transparent;
       border: 0;
@@ -131,6 +167,8 @@
     th { color: var(--muted); font-weight: 500; font-size: 12px; letter-spacing: 0.06em; }
     td input { width: 100%; padding: 8px 10px; }
     td.check { width: 52px; padding-top: 14px; }
+    td.act { width: 64px; padding-top: 8px; }
+    td.act button { padding: 6px 10px; font-size: 12px; font-weight: 500; }
     .grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
     @media (min-width: 860px) {
       .grid { grid-template-columns: 1fr 1fr; }
@@ -241,6 +279,7 @@
             <th>结束</th>
             <th>标题</th>
             <th>先发</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="rows"></tbody>
@@ -250,6 +289,8 @@
         <button type="button" class="ghost" id="cut-btn">只切各段</button>
         <button type="button" id="stitch-btn">开始剪辑并拼接</button>
       </div>
+      <p class="job-status" id="job-status">请先粘贴帖子链接并拉取视频，或直接点「拉取并拼接」。进度会显示在这里。</p>
+      <div class="progress job-bar hidden" id="job-bar"><span id="job-bar-fill"></span></div>
     </section>
 
     <section id="results"></section>
@@ -272,6 +313,39 @@
       const el = $("#hint");
       el.textContent = text;
       el.className = "hint" + (kind ? " " + kind : "");
+    }
+
+    function setJob(text, kind, percent) {
+      setHint(text, kind);
+      const el = $("#job-status");
+      if (el) {
+        el.textContent = text;
+        el.className = "job-status" + (kind ? " " + kind : "");
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      const bar = $("#job-bar");
+      const fill = $("#job-bar-fill");
+      if (!bar || !fill) return;
+      bar.classList.remove("indeterminate");
+      if (percent == null) {
+        bar.classList.add("hidden");
+        fill.style.width = "0%";
+      } else if (percent < 0) {
+        bar.classList.remove("hidden");
+        bar.classList.add("indeterminate");
+        fill.style.width = "32%";
+      } else {
+        bar.classList.remove("hidden");
+        fill.style.width = Math.max(0, Math.min(100, percent)) + "%";
+      }
+    }
+
+    function flashUrl() {
+      const form = $("#import-form");
+      const input = $("#url");
+      if (form) form.classList.add("flash");
+      if (input) input.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(() => form && form.classList.remove("flash"), 1600);
     }
 
     function setHealth(data, error) {
@@ -309,6 +383,7 @@
         <td><input class="end" placeholder="09:49" value="${escapeHtml(clip.end || "")}"></td>
         <td><input class="title" placeholder="标题" value="${escapeHtml(clip.title || "")}" data-point="${escapeHtml(clip.point || "")}"></td>
         <td class="check"><input class="rec" type="checkbox" ${clip.recommend ? "checked" : ""}></td>
+        <td class="act"><button type="button" class="ghost row-del" aria-label="删除这段">删除</button></td>
       `;
       $("#rows").appendChild(tr);
     }
@@ -330,7 +405,11 @@
       if (data.source_url && !$("#url").value.trim()) {
         $("#url").value = data.source_url;
       }
-      setHint(message || `已导入 ${(data.clips || []).length} 段时间戳。核对后可拉取视频并拼接。`);
+      const text = message || `已导入 ${(data.clips || []).length} 段时间戳。核对后可拉取视频并拼接。`;
+      setHint(text);
+      if (!state.id) {
+        setJob("时间戳已填好。请先在上方粘贴帖子链接，点「拉取并拼接」，或先点「只拉取视频」再点「开始剪辑并拼接」。");
+      }
     }
 
     function importRecipeText(text) {
@@ -354,7 +433,7 @@
       if (readClips().length) return true;
       const text = $("#recipe").value.trim();
       if (!text) {
-        setHint("请先导入或填写亮点配方。", "bad");
+        setJob("请先导入或填写亮点配方。", "bad");
         return false;
       }
       return importRecipeText(text);
@@ -371,6 +450,12 @@
     }
 
     $("#add-row").addEventListener("click", () => addRow());
+    $("#rows").addEventListener("click", (e) => {
+      const btn = e.target.closest(".row-del");
+      if (!btn) return;
+      const tr = btn.closest("tr");
+      if (tr) tr.remove();
+    });
 
     $("#import-recipe").addEventListener("click", () => {
       const text = $("#recipe").value;
@@ -417,7 +502,7 @@
       if (!looksLikeXUrl(url) && !extractXUrl(url)) {
         throw new Error("请粘贴完整的 x.com 或 twitter.com 视频帖链接，形如 https://x.com/用户名/status/数字");
       }
-      setHint("正在拉取视频，较长的片子可能要一两分钟。");
+      setJob("正在拉取视频，较长的片子可能要一两分钟。", "", -1);
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -437,9 +522,9 @@
       $("#run-all-btn").disabled = true;
       try {
         await importVideo();
-        setHint("视频已拉取到本机。核对时间戳后点「开始剪辑并拼接」，或点「拉取并拼接」从头再走一遍。");
+        setJob("视频已拉取到本机。核对时间戳后点「开始剪辑并拼接」，或点「拉取并拼接」从头再走一遍。", "ok");
       } catch (err) {
-        setHint(err.message || "拉取失败", "bad");
+        setJob(err.message || "拉取失败", "bad");
       } finally {
         btn.disabled = false;
         $("#run-all-btn").disabled = false;
@@ -450,16 +535,17 @@
       if (!ensureRecipeLoaded()) return;
       const clips = readClips();
       if (!state.id) {
-        setHint("请先拉取视频，或直接点「拉取并拼接」。", "bad");
+        setJob("请先拉取视频，或直接点上方的「拉取并拼接」。", "bad");
+        flashUrl();
         return;
       }
       if (!clips.length) {
-        setHint("请至少填写一段开始和结束时间。", "bad");
+        setJob("请至少填写一段开始和结束时间。", "bad");
         return;
       }
       const buttons = [$("#cut-btn"), $("#stitch-btn"), $("#import-btn"), $("#run-all-btn")];
       buttons.forEach((btn) => { btn.disabled = true; });
-      setHint(stitch ? "正在按时间戳剪辑并拼接…" : "正在按时间戳剪辑…");
+      setJob(stitch ? "正在按时间戳剪辑并拼接…" : "正在按时间戳剪辑…", "", -1);
       try {
         const res = await fetch("/api/cut", {
           method: "POST",
@@ -470,12 +556,12 @@
         if (!res.ok) throw new Error(data.error || "剪辑失败");
         renderResults(data);
         if (data.highlight) {
-          setHint(`已切出 ${data.clips.length} 个片段，并拼成一条约 ${data.highlight.seconds} 秒的亮点片，可预览和下载。`);
+          setJob(`已切出 ${data.clips.length} 个片段，并拼成一条约 ${data.highlight.seconds} 秒的亮点片，可预览和下载。`, "ok", 100);
         } else {
-          setHint(`已切出 ${data.clips.length} 个片段，可在页面里预览和下载。若要合成一条，请点「开始剪辑并拼接」。`);
+          setJob(`已切出 ${data.clips.length} 个片段，可在页面里预览和下载。若要合成一条，请点「开始剪辑并拼接」。`, "ok", 100);
         }
       } catch (err) {
-        setHint(err.message || "剪辑失败", "bad");
+        setJob(err.message || "剪辑失败", "bad");
       } finally {
         buttons.forEach((btn) => { btn.disabled = false; });
       }
@@ -494,7 +580,7 @@
         }
         await cutClips(true);
       } catch (err) {
-        setHint(err.message || "拉取或拼接失败", "bad");
+        setJob(err.message || "拉取或拼接失败", "bad");
       } finally {
         buttons.forEach((btn) => { btn.disabled = false; });
       }
@@ -542,6 +628,7 @@
         </article>
       `).join("");
       $("#results").innerHTML = `<h2>剪辑结果</h2><div class="grid">${highlightCard}${cards}</div>`;
+      $("#results").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
     loadHealth();
